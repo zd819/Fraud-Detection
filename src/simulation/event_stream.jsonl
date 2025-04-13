@@ -1,0 +1,10 @@
+{"timestep": 0, "type": "resource_usage", "data": {"cpu_percent": 3.524310053720625, "memory_percent": 33.53630230789768}}
+{"timestep": 1, "type": "message_sent", "data": {"prompt": "Analyze transaction: type=withdrawal, amount=$3257.95", "response": "Detected withdrawal transaction with amount $3257.95. Assessment: approved with medium risk. Confidence score: 0.72."}}
+{"timestep": 2, "type": "message_sent", "data": {"prompt": "Analyze transaction: type=transfer, amount=$6595.27", "response": "Transaction transfer for $6595.27 analyzed. Status: approved. Risk level: low. Confidence: 0.53."}}
+{"timestep": 3, "type": "resource_usage", "data": {"cpu_percent": 33.26304178583944, "memory_percent": 3.9768954353810337}}
+{"timestep": 4, "type": "message_received", "data": {"message": "Verify this payment"}}
+{"timestep": 5, "type": "tool_usage", "data": {"tool_name": "transaction_analyzer", "params": {"threshold": 0.22050094324045846, "max_results": 7}}}
+{"timestep": 6, "type": "resource_usage", "data": {"cpu_percent": 56.27739202957994, "memory_percent": 12.092819982578062}}
+{"timestep": 7, "type": "tool_usage", "data": {"tool_name": "pattern_detector", "params": {"threshold": 0.6197248050051158, "max_results": 3}}}
+{"timestep": 8, "type": "message_sent", "data": {"prompt": "Analyze transaction: type=withdrawal, amount=$1238.6", "response": "Analysis complete for $1238.6 withdrawal. Flagged as approved with 0.58 confidence. Risk assessment: low."}}
+{"timestep": 9, "type": "resource_usage", "data": {"cpu_percent": 21.102231405770087, "memory_percent": 83.3551609286857}}
