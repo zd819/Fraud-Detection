@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./database/db');
 const { providers, simulateProviderData, calculateInvestmentStrategy, runMultiProviderSimulation } = require('./simulation/provider_data');
-const { writeNodesToWatchdogFile, runSvmClassifier } = require('./fraud_detection/node_to_svm_adapter');
+const { writeNodesToWatchdogFile, runSvmClassifier, formatNodeStructureForFrontend } = require('./fraud_detection/node_to_svm_adapter');
 
 // Initialize Express app
 const app = express();
@@ -29,6 +29,8 @@ const io = new Server(server, {
 const activeSimulations = new Map();
 let allNodes = [];
 let anomalyResults = null;
+let formattedNodeResults = {};
+let processedNodeTimeline = []; // Timeline to maintain chronological order
 
 // Function to periodically process node data with SVM classifier
 async function processSvmClassification() {
@@ -43,10 +45,33 @@ async function processSvmClassification() {
         const result = await runSvmClassifier();
         anomalyResults = result;
         
+        // Format results for frontend consumption
+        formattedNodeResults = formatNodeStructureForFrontend(result, allNodes);
+        
+        // Update the timeline with new results
+        Object.entries(formattedNodeResults).forEach(([nodeName, nodeData]) => {
+            // Check if node is already in timeline
+            const existingIndex = processedNodeTimeline.findIndex(item => Object.keys(item)[0] === nodeName);
+            
+            if (existingIndex >= 0) {
+                // Update existing entry
+                processedNodeTimeline[existingIndex] = { [nodeName]: nodeData };
+            } else {
+                // Add new entry to timeline
+                processedNodeTimeline.push({ [nodeName]: nodeData });
+            }
+        });
+        
         // Emit the results to connected clients
         io.emit('anomalyDetection', {
             timestamp: new Date().toISOString(),
             ...result
+        });
+        
+        // Also emit the formatted node structure
+        io.emit('nodeStructureUpdate', {
+            timestamp: new Date().toISOString(),
+            nodeStructure: formattedNodeResults
         });
         
         console.log('SVM classification complete:', 
@@ -223,11 +248,82 @@ app.get('/api/anomalies', (req, res) => {
     });
 });
 
+// Formatted node structure endpoint - returns in chronological order
+app.get('/api/node-structure', (req, res) => {
+    res.json({
+        timestamp: new Date().toISOString(),
+        nodesInChronologicalOrder: processedNodeTimeline
+    });
+});
+
+// GPU nodes by provider endpoint
+app.get('/api/provider-gpus', (req, res) => {
+    // Group nodes by provider
+    const providersWithNodes = {};
+    
+    // Initialize providers with empty arrays
+    Object.keys(providers).forEach(providerId => {
+        const formattedId = providerId === 'prime_intellect' ? 'prime intellect' : providerId;
+        providersWithNodes[formattedId] = [];
+    });
+    
+    // Add all GPU nodes to their respective providers
+    allNodes.forEach(node => {
+        if (!node.data || !node.data.metadata) return;
+        
+        const providerName = node.data.metadata.provider;
+        // Convert to lowercase and replace underscores with spaces for the key
+        const providerKey = providerName.toLowerCase().replace(/_/g, ' ');
+        
+        // Only add the node type if it doesn't already exist in the array
+        if (providersWithNodes[providerKey] && !providersWithNodes[providerKey].includes(node.type)) {
+            providersWithNodes[providerKey].push(node.type);
+        }
+    });
+    
+    res.json(providersWithNodes);
+});
+
+// Detailed GPU nodes by provider endpoint
+app.get('/api/provider-gpus/detailed', (req, res) => {
+    // Group nodes by provider with detailed information
+    const providersWithDetailedNodes = {};
+    
+    // Initialize providers with empty objects
+    Object.keys(providers).forEach(providerId => {
+        const formattedId = providerId === 'prime_intellect' ? 'prime intellect' : providerId;
+        providersWithDetailedNodes[formattedId] = {};
+    });
+    
+    // Add all GPU nodes with their details to their respective providers
+    allNodes.forEach(node => {
+        if (!node.data || !node.data.metadata) return;
+        
+        const providerName = node.data.metadata.provider;
+        // Convert to lowercase and replace underscores with spaces for the key
+        const providerKey = providerName.toLowerCase().replace(/_/g, ' ');
+        
+        if (providersWithDetailedNodes[providerKey]) {
+            // Add the node with its rogue status and reason
+            providersWithDetailedNodes[providerKey][node.type] = {
+                rogue: node.data.metadata.rogue,
+                rogueReason: node.data.metadata.rogueReason
+            };
+        }
+    });
+    
+    res.json(providersWithDetailedNodes);
+});
+
 // Manual trigger for SVM processing
 app.post('/api/process-svm', async (req, res) => {
     try {
         await processSvmClassification();
-        res.json({ success: true, message: 'SVM processing triggered successfully' });
+        res.json({ 
+            success: true, 
+            message: 'SVM processing triggered successfully',
+            formattedResults: formattedNodeResults
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

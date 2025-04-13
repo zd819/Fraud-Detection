@@ -242,8 +242,94 @@ async function runSvmClassifier() {
     });
 }
 
+/**
+ * Formats SVM classifier results into a node structure for the frontend
+ * @param {Object} svmResults - Results from the SVM classifier
+ * @param {Array} nodeDataArray - Array of all node data
+ * @returns {Object} Formatted node structure for frontend consumption
+ */
+function formatNodeStructureForFrontend(svmResults, nodeDataArray) {
+    if (!svmResults || !nodeDataArray || !Array.isArray(nodeDataArray)) {
+        return {};
+    }
+
+    const nodeStructure = {};
+    
+    // Process each node
+    nodeDataArray.forEach(node => {
+        if (!node.id || !node.data || !node.data.metadata) return;
+        
+        const nodeName = node.id;
+        const provider = node.data.metadata.provider || 'Unknown';
+        
+        // Calculate trustworthy score (inverse of anomaly likelihood)
+        // Base score of 10, subtract if there are anomalies
+        let trustworthyScore = 10;
+        
+        // Check if this node contributed to anomalies in the SVM results
+        const isAnomaly = svmResults.anomalies > 0;
+        if (isAnomaly) {
+            // If there are anomalies, reduce score based on various factors
+            // This is a simple heuristic, could be more sophisticated
+            const errorRate = node.data.metadata.error_rate || 0;
+            const performanceIssue = node.data.metadata.performance_score < 70;
+            const highResourceUsage = 
+                (node.data.metadata.cpu_usage > 90) || 
+                (node.data.metadata.memory_usage > 90);
+            
+            // Deduct points for each issue
+            if (errorRate > 0.05) trustworthyScore -= 2;
+            if (performanceIssue) trustworthyScore -= 1.5;
+            if (highResourceUsage) trustworthyScore -= 1;
+            
+            // Minimum score floor
+            trustworthyScore = Math.max(1, trustworthyScore);
+        }
+        
+        // Round to one decimal place
+        trustworthyScore = Math.round(trustworthyScore * 10) / 10;
+        
+        // Determine if GPUs are rogue based on metrics
+        const gpus = [];
+        const agentNames = ['Primary', 'Secondary', 'Backup'];
+        
+        // Generate fake GPU configurations for each node
+        // In a real system, you'd get this data from actual monitoring
+        for (let i = 0; i < Math.min(3, Math.floor(Math.random() * 4) + 1); i++) {
+            const isRogue = trustworthyScore < 7 && Math.random() > 0.7;
+            const gpu = {
+                agent: `${provider} ${agentNames[i]}`,
+                isRogue: isRogue,
+                reasonOfRogue: ""
+            };
+            
+            if (isRogue) {
+                // Generate a reason for being rogue
+                const reasons = [
+                    "Abnormal resource consumption pattern detected",
+                    "GPU processing out of expected parameter ranges",
+                    "Suspicious operation signature detected",
+                    "Unexpected memory access patterns"
+                ];
+                gpu.reasonOfRogue = reasons[Math.floor(Math.random() * reasons.length)];
+            }
+            
+            gpus.push(gpu);
+        }
+        
+        // Add to node structure
+        nodeStructure[nodeName] = {
+            trustworthyScore,
+            gpus
+        };
+    });
+    
+    return nodeStructure;
+}
+
 module.exports = {
     writeNodesToWatchdogFile,
     runSvmClassifier,
-    convertNodeDataToSvmEvents
+    convertNodeDataToSvmEvents,
+    formatNodeStructureForFrontend
 };

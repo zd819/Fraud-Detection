@@ -3,35 +3,35 @@ const providers = {
         name: 'Nvidia',
         baseReturns: 0.15, // 15% base return
         riskFactor: 0.3,   // 30% volatility
-        nodeTypes: ['GPU', 'TPU', 'CPU'],
+        nodeTypes: ['H200', 'H100', 'V100', 'A100', 'T100'],
         minInvestment: 1000
     },
     'robinhood': {
         name: 'Robinhood',
         baseReturns: 0.12,
         riskFactor: 0.2,
-        nodeTypes: ['Trading', 'Analysis'],
+        nodeTypes: ['H200', 'H100', 'V100', 'A100', 'T100'],
         minInvestment: 500
     },
     'coinbase': {
         name: 'Coinbase',
         baseReturns: 0.18,
         riskFactor: 0.4,
-        nodeTypes: ['Mining', 'Staking', 'Trading'],
+        nodeTypes: ['H200', 'H100', 'V100', 'A100', 'T100'],
         minInvestment: 2000
     },
     'prime_intellect': {
         name: 'Prime Intellect',
         baseReturns: 0.25,
         riskFactor: 0.5,
-        nodeTypes: ['AI', 'ML', 'Compute'],
+        nodeTypes: ['H200', 'H100', 'V100', 'A100', 'T100'],
         minInvestment: 5000
     },
     'stake': {
         name: 'Stake.com',
         baseReturns: 0.20,
         riskFactor: 0.35,
-        nodeTypes: ['Gaming', 'Betting'],
+        nodeTypes: ['H200', 'H100', 'V100', 'A100', 'T100'],
         minInvestment: 1500
     }
 };
@@ -39,6 +39,27 @@ const providers = {
 // Generate random node data
 function generateNodeData(provider, nodeType) {
     const now = new Date();
+    
+    // Determine if this node is rogue (with a low probability)
+    const isRogue = Math.random() < 0.15; // 15% chance to be rogue
+    
+    // Generate rogue reason if applicable
+    let rogueReason = "";
+    if (isRogue) {
+        const rogueReasons = [
+            "Abnormal resource consumption pattern detected",
+            "GPU processing out of expected parameter ranges",
+            "Suspicious operation signature detected",
+            "Unexpected memory access patterns",
+            "Cryptographic anomalies detected",
+            "Unauthorized network communications",
+            "Anomalous power consumption",
+            "Hardware signature mismatch",
+            "Kernel integrity violation"
+        ];
+        rogueReason = rogueReasons[Math.floor(Math.random() * rogueReasons.length)];
+    }
+    
     return {
         timestamp: now.toISOString(),
         metadata: {
@@ -51,7 +72,9 @@ function generateNodeData(provider, nodeType) {
             provider: provider.name,
             performance_score: Math.random() * 100,
             uptime: Math.random() * 100,
-            last_maintenance: new Date(now - Math.random() * 86400000).toISOString()
+            last_maintenance: new Date(now - Math.random() * 86400000).toISOString(),
+            rogue: isRogue,
+            rogueReason: rogueReason
         },
         performance: {
             returns: provider.baseReturns * (1 + (Math.random() - 0.5) * provider.riskFactor),
